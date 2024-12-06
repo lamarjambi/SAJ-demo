@@ -405,7 +405,8 @@ function drawManual() {
   textFont(dokdoFont);
   let instructions = [
     "Controls:",
-    "- WASD"
+    "- WASD",
+    "- Arrow keys"
   ];
   
   let y = 150;
@@ -569,10 +570,10 @@ function drawPlayer() {
 }
 
 function updatePlayer() {
-  // Move player
-  if (keyIsDown(65)) {  // 'A' key for left
+  // Move player - check for both arrow keys and A/D
+  if (keyIsDown(65) || keyIsDown(LEFT_ARROW)) {  // 'A' key or left arrow
     player.velocityX = -player.speed;
-  } else if (keyIsDown(68)) {  // 'D' key for right
+  } else if (keyIsDown(68) || keyIsDown(RIGHT_ARROW)) {  // 'D' key or right arrow
     player.velocityX = player.speed;
   } else {
     player.velocityX *= 0.8;
@@ -591,7 +592,8 @@ function updatePlayer() {
 }
 
 function keyPressed() {
-  if (keyCode === 87 && player.y + player.height >= groundY) {  // 'W' key for jump
+  // Jump when either W or SPACE is pressed
+  if ((keyCode === 87 || keyCode === 32) && player.y + player.height >= groundY) {  // 'W' key or SPACE
     player.velocityY = -15;
   }
 }

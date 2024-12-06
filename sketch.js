@@ -184,7 +184,7 @@ function drawStartingPage() {
   // Draw Entity with upward floating movement
   push();
   imageMode(CENTER);
-  translate(1040, 250 + entityYOffset);
+  translate(1060, 250 + entityYOffset);
   scale(scaleFactorEntity);
   image(introEntity, 0, 0, 450, 550);
   pop();
@@ -339,48 +339,73 @@ function handleButtonClick(button) {
 
 function drawGameStory() {
   // Draw story background
+  tint(255, 126);  // 50% transparent white tint
   image(storyBG, 0, 0, width, height);
   
   textAlign(CENTER, CENTER);
-  textSize(24);
-  fill(255);
+  textSize(36);
+  textFont(dokdoFont);
   
-  // Story text
+  // Story text with stroke effect
   let storyText = "In a world overrun by mysterious entities,\nRini must navigate through dangerous subway tunnels\nto reach the last safe haven...";
+  
+  // Draw the black stroke/outline
+  fill(0);
+  text(storyText, width/2 - 2, height/2);
+  text(storyText, width/2 + 2, height/2);
+  text(storyText, width/2, height/2 - 2);
+  text(storyText, width/2, height/2 + 2);
+  // Add diagonals for better coverage
+  text(storyText, width/2 - 2, height/2 - 2);
+  text(storyText, width/2 + 2, height/2 - 2);
+  text(storyText, width/2 - 2, height/2 + 2);
+  text(storyText, width/2 + 2, height/2 + 2);
+  
+  // Draw the main text in white on top
+  fill(255);
   text(storyText, width/2, height/2);
   
   // Update story timer
   storyTimer++;
   
   // Show "Press SPACE to continue" after 2 seconds
-  if (storyTimer > 120) {
-    textSize(18);
-    text("Press SPACE to continue", width/2, height * 0.75);
+  if (storyTimer > 80) {
+    textSize(24);
+    
+    // Add stroke to "Press SPACE" text too
+    let spaceText = "Press SPACE to continue";
+    
+    // Draw the black stroke
+    fill(0);
+    text(spaceText, width/2 - 1, height * 0.75);
+    text(spaceText, width/2 + 1, height * 0.75);
+    text(spaceText, width/2, height * 0.75 - 1);
+    text(spaceText, width/2, height * 0.75 + 1);
+    
+    // Draw the main text in white
+    fill(255);
+    text(spaceText, width/2, height * 0.75);
+    
     if (keyIsDown(32)) { // Space key
       gameState = "game";
     }
   }
-}
+} 
 
 function drawManual() {
   background(50);
   textAlign(CENTER, TOP);
   textSize(36);
+  textFont(playFont);
   fill(255);
   text("Game Manual", width/2, 50);
   
   textAlign(LEFT, TOP);
   textSize(24);
+  textFont(dokdoFont);
   let instructions = [
     "Controls:",
-    "- LEFT/RIGHT ARROW: Move left/right",
-    "- SPACE: Jump",
-    "\nObjective:",
-    "- Reach the golden flag at the end of each level",
-    "- Avoid obstacles and enemies",
-    "\nTips:",
-    "- Time your jumps carefully",
-    "- Watch out for moving platforms"
+    "- WASD"
   ];
   
   let y = 150;
@@ -545,9 +570,9 @@ function drawPlayer() {
 
 function updatePlayer() {
   // Move player
-  if (keyIsDown(LEFT_ARROW)) {
+  if (keyIsDown(65)) {  // 'A' key for left
     player.velocityX = -player.speed;
-  } else if (keyIsDown(RIGHT_ARROW)) {
+  } else if (keyIsDown(68)) {  // 'D' key for right
     player.velocityX = player.speed;
   } else {
     player.velocityX *= 0.8;
@@ -566,7 +591,7 @@ function updatePlayer() {
 }
 
 function keyPressed() {
-  if (keyCode === 32 && player.y + player.height >= groundY) {
+  if (keyCode === 87 && player.y + player.height >= groundY) {  // 'W' key for jump
     player.velocityY = -15;
   }
 }

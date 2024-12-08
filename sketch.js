@@ -68,6 +68,9 @@ let rail;
 let train;
 let wires;
 
+// game
+
+
 function preload() {
   // font
   playFont = loadFont("Libraries/PressStart2P-Regular.ttf");
@@ -484,39 +487,39 @@ function drawBackButton() {
 }
 
 function drawLayers() {
-  // how many times we need to repeat each layer
   let screenOffset = Math.floor(cameraX / width);
 
-  // draw multiple instances to create infinite scroll in each layer
-  for (let i = -1; i <= 2; i++) {
+  // Increased range for better coverage
+  for (let i = -2; i <= 4; i++) {
     let xOffset = (screenOffset + i) * width;
 
-    // background is the slowest
+    // Adjust these parallax multipliers to be closer together
+    // Background wall and rail (slightly faster now)
     push();
-    translate(-cameraX * 0.2 + xOffset, 0);
+    translate(-cameraX * 0.5 + xOffset, 0);  // Changed from 0.2 to 0.5
     image(rail, 0, 0, width, height);
     pop();
 
-    // train
+    // Train (slightly faster)
     push();
-    translate(-cameraX * 0.4 + xOffset, 0);
+    translate(-cameraX * 0.6 + xOffset, 0);  // Changed from 0.4 to 0.6
     image(train, 0, 0, width, height);
     pop();
 
-    // columns
+    // Columns
     push();
-    translate(-cameraX * 0.6 + xOffset, 0);
+    translate(-cameraX * 0.7 + xOffset, 0);  // Changed from 0.6 to 0.7
     image(columns, 0, 0, width, height);
     pop();
 
-    // infoposts
+    // Info post and wires
     push();
-    translate(-cameraX * 0.8 + xOffset, 0);
+    translate(-cameraX * 0.8 + xOffset, 0);  // Kept at 0.8
     image(infopost, 0, 0, width, height);
     image(wires, 0, 0, width, height);
     pop();
 
-    // floor
+    // Floor (keeps same speed)
     push();
     translate(-cameraX + xOffset, 0);
     image(floor, 0, 0, width, height);

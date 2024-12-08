@@ -20,7 +20,7 @@ let entitySound;
 let player;
 let groundY;
 let cameraX = 0;
-let goalX = 5000; 
+let goalX = 8000; 
 let gameWon = false;
 let gameState = "intro"; // possible screens: "intro", "story", "game", "manual", "settings"
 
@@ -52,10 +52,10 @@ let garbo = {
   width: 80,
   height: 120,
   active: false,
-  speed: 3,
+  speed: 5,
   appearTimer: 0,
   appearInterval: 180, // Reduced from 300 for more frequent appearances
-  chaseTime: 180,
+  chaseTime: 280,
   currentChaseTime: 0,
   sprites: [],
   idleThreshold: 240  // 4 seconds (60 frames * 4)
@@ -87,7 +87,53 @@ let train;
 let wires;
 
 // game
-let gameOver = false;  // Track game over state
+let gameOver = false;  
+let gatewayCar;
+// Add with other global variables at the top
+let gameOverCause = ""; // Can be "garbo", "box", "tires", or ""
+
+// obstacles
+let box;
+let tires;
+let obstacles = [];
+const OBSTACLE_SPACING = 400;
+
+class Obstacle {
+  constructor(x, type) {
+    this.worldX = x;
+    this.y = groundY;
+    this.type = type;
+    if (type === 'box') {
+      this.width = 60;
+      this.height = 60;
+    } else {
+      this.width = 80;
+      this.height = 40;
+    }
+  }
+
+  draw() {
+    push();
+    translate(-cameraX, 0);
+    if (this.type === 'box') {
+      image(box, this.worldX, this.y - this.height, this.width, this.height);
+    } else {
+      image(tires, this.worldX, this.y - this.height, this.width, this.height);
+    }
+    pop();
+  }
+
+  checkCollision(player) {
+    let playerWorldX = player.worldX;
+    let collisionMargin = 10;
+    
+    return (
+      playerWorldX + player.width - collisionMargin > this.worldX &&
+      playerWorldX + collisionMargin < this.worldX + this.width &&
+      player.y + player.height > this.y - this.height
+    );
+  }
+}
 
 function preload() {
   // font
@@ -124,11 +170,20 @@ function preload() {
   rail = loadImage("assets/Bright/rail&wall.png");
   train = loadImage("assets/Bright/train.png");
   wires = loadImage("assets/Bright/wires.png");
+
+  // obstacles
+  box = loadImage("assets/obstacles/objects/trash/16.png");
+  tires = loadImage("assets/obstacles/objects/tires/3.png");
+
+  // game 
+  gatewayCar = loadImage("assets/obstacles/objects/cars/1.png")
+
 }
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   groundY = height - 100;
+  setupObstacles();
 
   player = {
     x: width / 4,
@@ -161,20 +216,30 @@ function draw() {
       drawGameStory();
       break;
       case "game":
-      if (!gameWon && !gameOver) {
-        updatePlayer();
-        cameraX = player.worldX - player.x;
-        drawLayers();
-        drawPlayer();
-        updateAndDrawGarbo();
-        drawGoal();
-        checkGoal();
-      } else if (gameOver) {
-        displayGameOverScreen();
-      } else {
-        displayWinScreen();
-      }
-      break;
+        if (!gameWon && !gameOver) {
+          updatePlayer();
+          cameraX = player.worldX - player.x;
+          drawLayers();
+          
+          // Draw and check obstacles
+          for (let obstacle of obstacles) {
+            obstacle.draw();
+            if (obstacle.checkCollision(player)) {
+              gameOver = true;
+              gameOverCause = obstacle.type; // "box" or "tires"
+            }
+          }
+          
+          drawPlayer();
+          updateAndDrawGarbo();
+          drawGoal();
+          checkGoal();
+        } else if (gameOver) {
+          displayGameOverScreen();
+        } else {
+          displayWinScreen();
+        }
+        break;
     case "manual":
       drawManual();
       break;
@@ -184,12 +249,6 @@ function draw() {
   }
   pop();
 }
-
-buttons = [
-  { x: width / 2, y: height * 0.35, width: 160, height: 244, angle: 10, image: playButton },
-  { x: width / 2, y: height * 0.35 + 60, width: 160, height: 244, angle: 10, image: manualButton },
-  { x: width / 2, y: height * 0.35 + 120, width: 160, height: 244, angle: 0, image: null }
-];
 
 function drawStartingPage() {
   image(introBG, 0, 0, width, height);
@@ -215,18 +274,18 @@ function drawStartingPage() {
 
   // draw Rini
   push();
-  imageMode(CENTER);
-  translate(220, 305 + riniYOffset);
-  scale(scaleFactorRini);
-  image(introRini, 0, 0, 450, 550);
+    imageMode(CENTER);
+    translate(220, 305 + riniYOffset);
+    scale(scaleFactorRini);
+    image(introRini, 0, 0, 450, 550);
   pop();
 
   // draw Entity
   push();
-  imageMode(CENTER);
-  translate(1060, 250 + entityYOffset);
-  scale(scaleFactorEntity);
-  image(introEntity, 0, 0, 450, 550);
+    imageMode(CENTER);
+    translate(1060, 250 + entityYOffset);
+    scale(scaleFactorEntity);
+    image(introEntity, 0, 0, 450, 550);
   pop();
 
 
@@ -427,6 +486,33 @@ function drawGameStory() {
   }
 } 
 
+// obstacles
+function setupObstacles() {
+  obstacles = [];
+  let currentX = width * 2; // Start after initial screen
+  
+  while (currentX < goalX - width) {
+    // Create first obstacle
+    let type1 = random() > 0.5 ? 'box' : 'tires';
+    obstacles.push(new Obstacle(currentX, type1));
+    
+    // 50% chance to add a second obstacle
+    if (random() > 0.5) {
+      let type2 = random() > 0.5 ? 'box' : 'tires';
+      obstacles.push(new Obstacle(currentX + 150, type2));
+    }
+    
+    // 30% chance to add a third obstacle
+    if (random() > 0.7) {
+      let type3 = random() > 0.5 ? 'box' : 'tires';
+      obstacles.push(new Obstacle(currentX + 300, type3));
+    }
+    
+    // Move to next position
+    currentX += OBSTACLE_SPACING + random(200, 400);
+  }
+}
+
 function drawManual() {
   background(50);
   textAlign(CENTER, TOP);
@@ -519,33 +605,32 @@ function drawLayers() {
   for (let i = -2; i <= 4; i++) {
     let xOffset = (screenOffset + i) * width;
 
-    // Adjust these parallax multipliers to be closer together
-    // Background wall and rail (slightly faster now)
+    // Background wall and rail
     push();
-    translate(-cameraX * 0.5 + xOffset, 0);  // Changed from 0.2 to 0.5
+    translate(-cameraX * 0.5 + xOffset, 0);
     image(rail, 0, 0, width, height);
     pop();
 
-    // Train (slightly faster)
+    // Train
     push();
-    translate(-cameraX * 0.6 + xOffset, 0);  // Changed from 0.4 to 0.6
+    translate(-cameraX * 0.6 + xOffset, 0);
     image(train, 0, 0, width, height);
     pop();
 
     // Columns
     push();
-    translate(-cameraX * 0.7 + xOffset, 0);  // Changed from 0.6 to 0.7
+    translate(-cameraX * 0.7 + xOffset, 0);
     image(columns, 0, 0, width, height);
     pop();
 
     // Info post and wires
     push();
-    translate(-cameraX * 0.8 + xOffset, 0);  // Kept at 0.8
+    translate(-cameraX * 0.8 + xOffset, 0);
     image(infopost, 0, 0, width, height);
     image(wires, 0, 0, width, height);
     pop();
 
-    // Floor (keeps same speed)
+    // Floor
     push();
     translate(-cameraX + xOffset, 0);
     image(floor, 0, 0, width, height);
@@ -555,15 +640,9 @@ function drawLayers() {
 
 // debatable goal!
 function drawGoal() {
-  // Draw goal post
   push();
-  translate(-cameraX, 0);
-  fill(255, 215, 0); // Gold color
-  rect(goalX, groundY - 100, 50, 100);
-
-  // flag
-  fill(255, 0, 0);
-  triangle(goalX, groundY - 100, goalX + 50, groundY - 80, goalX, groundY - 60);
+    translate(-cameraX, 0);
+    image(gatewayCar, goalX, groundY - 120, 288, 118); 
   pop();
 }
 
@@ -587,6 +666,10 @@ function displayWinScreen() {
   }
 }
 
+function resetObstacles() {
+  setupObstacles();
+}
+
 function resetGame() {
   player.worldX = width / 4;
   player.x = width / 4;
@@ -595,10 +678,12 @@ function resetGame() {
   player.velocityY = 0;
   cameraX = 0;
   gameWon = false;
-  gameOver = false;  // Add this line
+  gameOver = false;
+  gameOverCause = ""; // Add this line
   gameState = "intro";
-  garbo.active = false;  // Reset Garbo state
-  playerIdleTime = 0;    // Reset idle time
+  garbo.active = false;
+  playerIdleTime = 0;
+  setupObstacles();
 }
 
 function drawPlayer() {
@@ -725,10 +810,11 @@ function updateAndDrawGarbo() {
     
     // Check for collision with player
     let adjustedGarboX = garbo.x - cameraX;
-    if (player.x < adjustedGarboX + garbo.width/2 &&
-        player.x + player.width > adjustedGarboX - garbo.width/2 &&
-        player.y + player.height > garbo.y) {
-      gameOver = true;  // Set game over state instead of immediate reset
+    // Check for collision with player
+    if (Math.abs(player.worldX - garbo.x) < (player.width + garbo.width) / 2 &&
+      player.y + player.height > garbo.y) {
+      gameOver = true;
+      gameOverCause = "garbo";
     }
   }
 }
@@ -738,14 +824,29 @@ function displayGameOverScreen() {
   textSize(32);
   textAlign(CENTER, CENTER);
   fill(255);
-  text("Game Over!", width/2, height/2 - 30);
-  text("Queen Garbo caught you!", width/2, height/2 + 30);
+  
+  text("Game Over!", width/2, height/2 - 60);
+  
+  // Different messages based on cause
+  switch(gameOverCause) {
+    case "garbo":
+      text("Queen Garbo caught you!", width/2, height/2);
+      break;
+    case "box":
+      text("You crashed into a box!", width/2, height/2);
+      break;
+    case "tires":
+      text("You tripped over the tires!", width/2, height/2);
+      break;
+  }
+  
   textSize(20);
   text("Press R to restart", width/2, height/2 + 80);
 
   if (keyIsPressed && key.toLowerCase() === 'r') {
     resetGame();
-    gameOver = false;  // Reset game over state
+    gameOver = false;
+    gameOverCause = ""; // Reset the cause
   }
 }
 

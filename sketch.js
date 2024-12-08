@@ -38,12 +38,28 @@ let scaleFactorRini = 1;
 let scaleFactorEntity = 1;
 const ANIMATION_PERIOD = 120; 
 
-// Add to your global variables
+// rini animations
 let riniSprites = [];
 let currentRiniFrame = 0;
 let frameDelay = 8; // Controls animation speed
 let frameCounter = 0;
 let facingLeft = false;
+
+// garbo animations
+// Add to your global variables
+let garbo = {
+  x: 0,
+  y: 0,
+  width: 80,
+  height: 120,
+  active: false,
+  speed: 3,
+  appearTimer: 0,
+  appearInterval: 300, // How often Garbo might appear
+  chaseTime: 180,     // How long Garbo chases for
+  currentChaseTime: 0,
+  sprites: []  // Will hold Garbo animation frames
+};
 
 // settings
 let brightness = 100;
@@ -93,6 +109,11 @@ function preload() {
     riniSprites.push(loadImage(`assets/rini-walking-${i}.png`));
   }
 
+  // garbo animation
+  for (let i = 1; i <= 2; i++) {
+    garbo.sprites.push(loadImage(`assets/garbo-walking-${i}.png`));
+  }
+
   // background elements
   bg = loadImage("assets/Bright/bg.png");
   columns = loadImage("assets/Bright/columns&floor.png");
@@ -137,18 +158,19 @@ function draw() {
     case "story":
       drawGameStory();
       break;
-    case "game":
-      if (!gameWon) {
-        updatePlayer();
-        cameraX = player.worldX - player.x;
-        drawLayers();
-        drawPlayer();
-        drawGoal();
-        checkGoal();
-      } else {
-        displayWinScreen();
-      }
-      break;
+      case "game":
+        if (!gameWon) {
+          updatePlayer();
+          cameraX = player.worldX - player.x;
+          drawLayers();
+          drawPlayer();
+          updateAndDrawGarbo(); // Add this line
+          drawGoal();
+          checkGoal();
+        } else {
+          displayWinScreen();
+        }
+        break;
     case "manual":
       drawManual();
       break;
@@ -641,6 +663,60 @@ function updatePlayer() {
   if (player.y + player.height > groundY) {
     player.y = groundY - player.height;
     player.velocityY = 0;
+  }
+}
+
+// Add this new function
+function updateAndDrawGarbo() {
+  if (!garbo.active) {
+    // Random chance to appear
+    garbo.appearTimer++;
+    if (garbo.appearTimer > garbo.appearInterval) {
+      if (random() < 0.2) { // 20% chance to appear
+        garbo.active = true;
+        garbo.x = player.worldX - width/2; // Start behind Rini
+        garbo.y = groundY - garbo.height;
+        garbo.currentChaseTime = garbo.chaseTime;
+      }
+      garbo.appearTimer = 0;
+    }
+  } else {
+    // Update Garbo's position (chase logic)
+    let distanceToPlayer = player.worldX - garbo.x;
+    if (distanceToPlayer > 0) { // Only chase if Rini is ahead
+      garbo.x += garbo.speed;
+    }
+    
+    // Draw Garbo
+    push();
+    imageMode(CENTER);
+    translate(-cameraX + garbo.x, garbo.y + garbo.height/2);
+    
+    // Flicker effect when appearing/disappearing
+    if (garbo.currentChaseTime > garbo.chaseTime - 30 || 
+        garbo.currentChaseTime < 30) {
+      if (frameCount % 4 < 2) { // Create flickering effect
+        image(garbo.sprites[1], 0, 0, garbo.width, garbo.height);
+      }
+    } else {
+      image(garbo.sprites[1], 0, 0, garbo.width, garbo.height);
+    }
+    pop();
+    
+    // Update chase timer
+    garbo.currentChaseTime--;
+    if (garbo.currentChaseTime <= 0) {
+      garbo.active = false;
+    }
+    
+    // Check for collision with player
+    let adjustedGarboX = garbo.x - cameraX;
+    if (player.x < adjustedGarboX + garbo.width/2 &&
+        player.x + player.width > adjustedGarboX - garbo.width/2 &&
+        player.y + player.height > garbo.y) {
+      // Player got caught!
+      resetGame(); // Or implement your own game over logic
+    }
   }
 }
 

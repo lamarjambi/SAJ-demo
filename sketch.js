@@ -46,7 +46,6 @@ let frameCounter = 0;
 let facingLeft = false;
 
 // garbo animations
-// Add to your global variables
 let garbo = {
   x: 0,
   y: 0,
@@ -55,11 +54,14 @@ let garbo = {
   active: false,
   speed: 3,
   appearTimer: 0,
-  appearInterval: 300, // How often Garbo might appear
-  chaseTime: 180,     // How long Garbo chases for
+  appearInterval: 180, // Reduced from 300 for more frequent appearances
+  chaseTime: 180,
   currentChaseTime: 0,
-  sprites: []  // Will hold Garbo animation frames
+  sprites: [],
+  idleThreshold: 240  // 4 seconds (60 frames * 4)
 };
+
+let playerIdleTime = 0;
 
 // settings
 let brightness = 100;
@@ -85,7 +87,7 @@ let train;
 let wires;
 
 // game
-
+let gameOver = false;  // Track game over state
 
 function preload() {
   // font
@@ -159,18 +161,20 @@ function draw() {
       drawGameStory();
       break;
       case "game":
-        if (!gameWon) {
-          updatePlayer();
-          cameraX = player.worldX - player.x;
-          drawLayers();
-          drawPlayer();
-          updateAndDrawGarbo(); // Add this line
-          drawGoal();
-          checkGoal();
-        } else {
-          displayWinScreen();
-        }
-        break;
+      if (!gameWon && !gameOver) {
+        updatePlayer();
+        cameraX = player.worldX - player.x;
+        drawLayers();
+        drawPlayer();
+        updateAndDrawGarbo();
+        drawGoal();
+        checkGoal();
+      } else if (gameOver) {
+        displayGameOverScreen();
+      } else {
+        displayWinScreen();
+      }
+      break;
     case "manual":
       drawManual();
       break;
@@ -591,7 +595,10 @@ function resetGame() {
   player.velocityY = 0;
   cameraX = 0;
   gameWon = false;
+  gameOver = false;  // Add this line
   gameState = "intro";
+  garbo.active = false;  // Reset Garbo state
+  playerIdleTime = 0;    // Reset idle time
 }
 
 function drawPlayer() {
@@ -666,20 +673,28 @@ function updatePlayer() {
   }
 }
 
-// Add this new function
 function updateAndDrawGarbo() {
+  // Update idle time counter
+  if (Math.abs(player.velocityX) < 0.1) {
+    playerIdleTime++;
+  } else {
+      playerIdleTime = 0;
+  }
+
   if (!garbo.active) {
-    // Random chance to appear
-    garbo.appearTimer++;
-    if (garbo.appearTimer > garbo.appearInterval) {
-      if (random() < 0.2) { // 20% chance to appear
-        garbo.active = true;
-        garbo.x = player.worldX - width/2; // Start behind Rini
-        garbo.y = groundY - garbo.height;
-        garbo.currentChaseTime = garbo.chaseTime;
+      garbo.appearTimer++;
+      
+      if ((playerIdleTime > garbo.idleThreshold) || 
+          (garbo.appearTimer > garbo.appearInterval && random(1) < 0.3)) {
+          
+          console.log("Garbo appearing!");
+          garbo.active = true;
+          garbo.x = player.worldX - width/2;
+          garbo.y = groundY - garbo.height;
+          garbo.currentChaseTime = garbo.chaseTime;
+          garbo.appearTimer = 0;
+          playerIdleTime = 0;
       }
-      garbo.appearTimer = 0;
-    }
   } else {
     // Update Garbo's position (chase logic)
     let distanceToPlayer = player.worldX - garbo.x;
@@ -687,15 +702,14 @@ function updateAndDrawGarbo() {
       garbo.x += garbo.speed;
     }
     
-    // Draw Garbo
+    // Draw Garbo - removed flicker effect during chase
     push();
     imageMode(CENTER);
     translate(-cameraX + garbo.x, garbo.y + garbo.height/2);
     
-    // Flicker effect when appearing/disappearing
-    if (garbo.currentChaseTime > garbo.chaseTime - 30 || 
-        garbo.currentChaseTime < 30) {
-      if (frameCount % 4 < 2) { // Create flickering effect
+    // Only flicker when first appearing
+    if (garbo.currentChaseTime > garbo.chaseTime - 30) {
+      if (frameCount % 4 < 2) {
         image(garbo.sprites[1], 0, 0, garbo.width, garbo.height);
       }
     } else {
@@ -714,9 +728,24 @@ function updateAndDrawGarbo() {
     if (player.x < adjustedGarboX + garbo.width/2 &&
         player.x + player.width > adjustedGarboX - garbo.width/2 &&
         player.y + player.height > garbo.y) {
-      // Player got caught!
-      resetGame(); // Or implement your own game over logic
+      gameOver = true;  // Set game over state instead of immediate reset
     }
+  }
+}
+
+function displayGameOverScreen() {
+  background(0);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  fill(255);
+  text("Game Over!", width/2, height/2 - 30);
+  text("Queen Garbo caught you!", width/2, height/2 + 30);
+  textSize(20);
+  text("Press R to restart", width/2, height/2 + 80);
+
+  if (keyIsPressed && key.toLowerCase() === 'r') {
+    resetGame();
+    gameOver = false;  // Reset game over state
   }
 }
 

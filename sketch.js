@@ -91,6 +91,11 @@ let gameOver = false;
 let gatewayCar;
 // Add with other global variables at the top
 let gameOverCause = ""; // Can be "garbo", "box", "tires", or ""
+let lives = 3;
+let maxLives = 3;
+let heartsSprite; // Single sprite with all hearts
+let deathScreenTimer = 0;
+let showingDeathScreen = false;
 
 // obstacles
 let box;
@@ -176,7 +181,8 @@ function preload() {
   tires = loadImage("assets/obstacles/objects/tires/3.png");
 
   // game 
-  gatewayCar = loadImage("assets/obstacles/objects/cars/1.png")
+  gatewayCar = loadImage("assets/obstacles/objects/cars/1.png");
+  heartsSprite = loadImage("assets/heart.png");
 
 }
 
@@ -217,23 +223,40 @@ function draw() {
       break;
       case "game":
         if (!gameWon && !gameOver) {
-          updatePlayer();
-          cameraX = player.worldX - player.x;
-          drawLayers();
-          
-          // Draw and check obstacles
-          for (let obstacle of obstacles) {
-            obstacle.draw();
-            if (obstacle.checkCollision(player)) {
-              gameOver = true;
-              gameOverCause = obstacle.type; // "box" or "tires"
+          if (showingDeathScreen) {
+            displayDeathScreen();
+            deathScreenTimer++;
+            if (deathScreenTimer > 120) { // 2 seconds
+              showingDeathScreen = false;
+              deathScreenTimer = 0;
+              resetPlayerPosition();
             }
+          } else {
+            updatePlayer();
+            cameraX = player.worldX - player.x;
+            drawLayers();
+            
+            // Draw and check obstacles
+            for (let obstacle of obstacles) {
+              obstacle.draw();
+              if (obstacle.checkCollision(player)) {
+                lives--;
+                if(lives <= 0) {
+                  gameOver = true;
+                } else {
+                  showingDeathScreen = true;
+                }
+                gameOverCause = obstacle.type;
+                break;
+              }
+            }
+            
+            drawPlayer();
+            updateAndDrawGarbo();
+            drawGoal();
+            checkGoal();
+            drawHearts();
           }
-          
-          drawPlayer();
-          updateAndDrawGarbo();
-          drawGoal();
-          checkGoal();
         } else if (gameOver) {
           displayGameOverScreen();
         } else {
@@ -443,7 +466,7 @@ function drawGameStory() {
   textSize(36);
   textFont(dokdoFont);
   
-  let storyText = "In a world overrun by mysterious entities,\nRini must navigate through dangerous subway tunnels\nto reach the last safe haven...";
+  let storyText = "In a world overrun by mysterious entities,\nRini must navigate through the dangerous portal\nto reach the last gateway truck to a safer haven...";
   
   // strokes
   fill(0);
@@ -485,6 +508,57 @@ function drawGameStory() {
     }
   }
 } 
+
+function drawHearts() {
+  push();
+  // Position in top left corner
+  translate(20, 20);
+  
+  // Get the width of a single heart from the sprite
+  let heartWidth = heartsSprite.width / 3;
+  let heartHeight = heartsSprite.height;
+  
+  // Draw each heart individually with appropriate tint
+  for(let i = 0; i < maxLives; i++) {
+    push();
+    if(i < lives) {
+      // Full heart - no tint
+      tint(255);
+    } else {
+      // Empty heart - grey tint
+      tint(128);
+    }
+    // Draw just this section of the hearts sprite
+    image(heartsSprite, 
+          i * heartWidth, 0,      // destination x,y
+          heartWidth, heartHeight, // destination width,height
+          i * heartWidth, 0,      // source x,y
+          heartWidth, heartHeight  // source width,height
+    );
+    pop();
+  }
+  pop();
+}
+
+function displayDeathScreen() {
+  background(0);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  fill("#f0df46");
+  textFont(dokdoFont);
+  
+  switch(gameOverCause) {
+    case "garbo":
+      text("Queen Garbo caught you!! But you managed to escape!", width/2, height/2);
+      break;
+    case "box":
+      text("Oh, shoot! You hit a mysterious box.. But you recovered!", width/2, height/2);
+      break;
+    case "tires":
+      text("Ouch! Those magical tires got you.. But you got back up!", width/2, height/2);
+      break;
+  }
+}
 
 // obstacles
 function setupObstacles() {
@@ -657,7 +731,9 @@ function displayWinScreen() {
   textSize(32);
   textAlign(CENTER, CENTER);
   fill(255);
-  text("You reached the goal!", width / 2, height / 2);
+  textFont(playFont);
+  fill("#f0df46");
+  text("You escaped Queen Garbo's shackles!!", width / 2, height / 2);
   textSize(20);
   text("Press R to restart", width / 2, height / 2 + 50);
 
@@ -679,10 +755,11 @@ function resetGame() {
   cameraX = 0;
   gameWon = false;
   gameOver = false;
-  gameOverCause = ""; // Add this line
+  gameOverCause = "";
   gameState = "intro";
   garbo.active = false;
   playerIdleTime = 0;
+  lives = 3;  // Add this line
   setupObstacles();
 }
 
@@ -812,8 +889,13 @@ function updateAndDrawGarbo() {
     let adjustedGarboX = garbo.x - cameraX;
     // Check for collision with player
     if (Math.abs(player.worldX - garbo.x) < (player.width + garbo.width) / 2 &&
-      player.y + player.height > garbo.y) {
-      gameOver = true;
+    player.y + player.height > garbo.y) {
+      lives--;
+      if(lives <= 0) {
+        gameOver = true;
+      } else {
+        showingDeathScreen = true;
+      }
       gameOverCause = "garbo";
     }
   }
@@ -823,23 +905,28 @@ function displayGameOverScreen() {
   background(0);
   textSize(32);
   textAlign(CENTER, CENTER);
-  fill(255);
+  fill("#f0df46");
+  textFont(playFont);
   
   text("Game Over!", width/2, height/2 - 60);
   
   // Different messages based on cause
+  textFont(dokdoFont);
+  fill("#f0df46");
   switch(gameOverCause) {
     case "garbo":
-      text("Queen Garbo caught you!", width/2, height/2);
+      text("Queen Garbo caught you!! She'll throw you in the deep pit!!", width/2, height/2);
       break;
     case "box":
-      text("You crashed into a box!", width/2, height/2);
+      text("Oh, shoot! You stepped into Queen Garbo's mysterious box..", width/2, height/2);
       break;
     case "tires":
-      text("You tripped over the tires!", width/2, height/2);
+      text("Nooo!! You stumbled into a new realm because of the magical tires!!", width/2, height/2);
       break;
   }
   
+  textFont(dokdoFont);
+  fill("#f0df46");
   textSize(20);
   text("Press R to restart", width/2, height/2 + 80);
 
@@ -848,6 +935,17 @@ function displayGameOverScreen() {
     gameOver = false;
     gameOverCause = ""; // Reset the cause
   }
+}
+
+function resetPlayerPosition() {
+  player.x = width / 4;
+  player.worldX = width / 4;
+  player.y = height - 160;
+  player.velocityX = 0;
+  player.velocityY = 0;
+  cameraX = 0;
+  garbo.active = false;
+  playerIdleTime = 0;
 }
 
 function keyPressed() {

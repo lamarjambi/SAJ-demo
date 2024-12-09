@@ -14,15 +14,9 @@
 
 // sounds
 let bgMusic;
-let riniSound;
-let entitySound;
-
-let player;
-let groundY;
-let cameraX = 0;
-let goalX = 8000; 
-let gameWon = false;
-let gameState = "intro"; // possible screens: "intro", "story", "game", "manual", "settings"
+let winSound;
+let garboSound;
+let loseSound;
 
 // fonts
 let playFont;
@@ -41,7 +35,7 @@ const ANIMATION_PERIOD = 120;
 // rini animations
 let riniSprites = [];
 let currentRiniFrame = 0;
-let frameDelay = 8; // Controls animation speed
+let frameDelay = 8;
 let frameCounter = 0;
 let facingLeft = false;
 
@@ -54,7 +48,7 @@ let garbo = {
   active: false,
   speed: 5,
   appearTimer: 0,
-  appearInterval: 180, // Reduced from 300 for more frequent appearances
+  appearInterval: 180, 
   chaseTime: 280,
   currentChaseTime: 0,
   sprites: [],
@@ -89,13 +83,18 @@ let wires;
 // game
 let gameOver = false;  
 let gatewayCar;
-// Add with other global variables at the top
-let gameOverCause = ""; // Can be "garbo", "box", "tires", or ""
+let gameOverCause = ""; // "garbo", "box", "tires", or ""
 let lives = 3;
 let maxLives = 3;
-let heartsSprite; // Single sprite with all hearts
+let heartsSprite; 
 let deathScreenTimer = 0;
 let showingDeathScreen = false;
+let player;
+let groundY;
+let cameraX = 0;
+let goalX = 8000; 
+let gameWon = false;
+let gameState = "intro"; // "intro", "story", "game", "manual", "settings"
 
 // obstacles
 let box;
@@ -184,6 +183,11 @@ function preload() {
   gatewayCar = loadImage("assets/obstacles/objects/cars/1.png");
   heartsSprite = loadImage("assets/heart.png");
 
+  // sounds
+  bgMusic = loadSound("assets/space-station.mp3");
+  winSound = loadSound("assets/game-level.mp3");
+  garboSound = loadSound("assets/zombie.mp3");
+  loseSound = loadSound("assets/game-over.mp3");
 }
 
 function setup() {
@@ -429,8 +433,6 @@ function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset) {
   const relativeX = mouseX - adjustedButtonX;
   const relativeY = mouseY - adjustedButtonY;
   
-  // Rotate the mouse coordinates in the opposite direction of the button's rotation
-  // to check against an unrotated rectangle
   const rotatedX = relativeX * Math.cos(-rad) - relativeY * Math.sin(-rad);
   const rotatedY = relativeX * Math.sin(-rad) + relativeY * Math.cos(-rad);
   
@@ -511,30 +513,24 @@ function drawGameStory() {
 
 function drawHearts() {
   push();
-  // Position in top left corner
-  translate(20, 20);
-  
-  // Get the width of a single heart from the sprite
-  let heartWidth = heartsSprite.width / 3;
-  let heartHeight = heartsSprite.height;
-  
-  // Draw each heart individually with appropriate tint
-  for(let i = 0; i < maxLives; i++) {
-    push();
-    if(i < lives) {
-      // Full heart - no tint
-      tint(255);
-    } else {
-      // Empty heart - grey tint
-      tint(128);
-    }
-    // Draw just this section of the hearts sprite
-    image(heartsSprite, 
-          i * heartWidth, 0,      // destination x,y
-          heartWidth, heartHeight, // destination width,height
-          i * heartWidth, 0,      // source x,y
-          heartWidth, heartHeight  // source width,height
-    );
+    translate(20, 20);
+    
+    let heartWidth = heartsSprite.width / 3 - 1; // divide sprite
+    let heartHeight = heartsSprite.height;
+    
+    for(let i = 0; i < maxLives; i++) {
+      push();
+      if(i < lives) {
+        tint(255);
+      } else {
+        tint(128);
+      }
+      image(heartsSprite, 
+            i * heartWidth, 0,       
+            heartWidth, heartHeight, 
+            i * heartWidth, 0,      
+            heartWidth, heartHeight 
+      );
     pop();
   }
   pop();
@@ -546,7 +542,7 @@ function displayDeathScreen() {
   textAlign(CENTER, CENTER);
   fill("#f0df46");
   textFont(dokdoFont);
-  
+
   switch(gameOverCause) {
     case "garbo":
       text("Queen Garbo caught you!! But you managed to escape!", width/2, height/2);
@@ -563,10 +559,10 @@ function displayDeathScreen() {
 // obstacles
 function setupObstacles() {
   obstacles = [];
-  let currentX = width * 2; // Start after initial screen
+  let currentX = width * 2; 
   
   while (currentX < goalX - width) {
-    // Create first obstacle
+    // initial obstacle
     let type1 = random() > 0.5 ? 'box' : 'tires';
     obstacles.push(new Obstacle(currentX, type1));
     
@@ -579,38 +575,76 @@ function setupObstacles() {
     // 30% chance to add a third obstacle
     if (random() > 0.7) {
       let type3 = random() > 0.5 ? 'box' : 'tires';
-      obstacles.push(new Obstacle(currentX + 300, type3));
+      // Increased spacing from 300 to 500
+      obstacles.push(new Obstacle(currentX + 500, type3));
     }
     
-    // Move to next position
-    currentX += OBSTACLE_SPACING + random(200, 400);
+    currentX += 800 + random(350, 500);
   }
 }
 
 function drawManual() {
-  background(50);
-  textAlign(CENTER, TOP);
-  textSize(36);
-  textFont(playFont);
-  fill(255);
-  text("Game Manual", width/2, 50);
+  background(30);
   
-  textAlign(LEFT, TOP);
-  textSize(24);
-  textFont(dokdoFont);
-  let instructions = [
-    "Controls:",
-    "- WASD",
-    "- Arrow keys"
-  ];
+  push();
+    textAlign(CENTER, TOP);
+    textSize(36);
+    textFont(playFont);
+    fill(255);
+    text("Game Manual", width/2, 50);
+    
+    textAlign(LEFT, TOP);
+    textSize(24);
+    textFont(dokdoFont);
+    let instructions = [
+      "Help Rini escape the this junkyard realm!",
+      "Controls (both work):",
+      "- WASD keys",
+      "- Arrow keys + Space to jump",
+
+      "Gameplay:",
+      "- Queen Garbo is chasing Rini! Run away from her!",
+      "- Beware of the boxes and tires on the ground--they're booby traps!"
+    ];
+    
+    let y = 150;
+    for (let instruction of instructions) {
+      text(instruction, width/4, y);
+      y += 40;
+    }
+  pop();
   
-  let y = 150;
-  for (let instruction of instructions) {
-    text(instruction, width/4, y);
-    y += 40;
+  // Back button variables
+  let buttonX = 20;
+  let buttonY = 20;
+  let buttonSize = 40;
+  
+  // Check if mouse is over button
+  let isHovered = mouseX > buttonX && 
+                  mouseX < buttonX + buttonSize && 
+                  mouseY > buttonY && 
+                  mouseY < buttonY + buttonSize;
+  
+  push(); // Save state before button drawing
+  
+    // Draw button background
+    noStroke();
+    fill(isHovered ? '#f84465' : 255);
+    rect(buttonX, buttonY, buttonSize, buttonSize);
+    
+    // Draw X - with separate styling
+    fill(0); // Black X
+    textAlign(CENTER, CENTER); // This is crucial for centering the X
+    textSize(32);
+    textFont(playFont);
+    // Position X in center of rectangle
+    text("X", buttonX + buttonSize/2 + 2, buttonY + buttonSize/2 + 1);
+  
+  pop(); // Restore state
+  
+  if (isHovered && mouseIsPressed) {
+    gameState = "intro";
   }
-  
-  drawBackButton();
 }
 
 function drawSettings() {
@@ -653,61 +687,63 @@ function drawSlider(x, y, value, onChange) {
 }
 
 function drawBackButton() {
-  let buttonX = width/2 - 100;
-  let buttonY = height - 100;
+  let buttonX = 100;
+  let buttonY = 100;
+  let buttonSize = 100;
   
-  if (mouseX > buttonX && mouseX < buttonX + 200 &&
-      mouseY > buttonY - 25 && mouseY < buttonY + 25) {
-    fill(150);
+  // Check if mouse is over the X button
+  if (mouseX > buttonX - buttonSize/2 && mouseX < buttonX + buttonSize/2 &&
+      mouseY > buttonY - buttonSize/2 && mouseY < buttonY + buttonSize/2) {
+    fill('#f84465'); // Using the same pink color from the title for consistency
     if (mouseIsPressed) {
       gameState = "intro";
     }
   } else {
-    fill(100);
+    fill(255); // White color for better visibility
   }
   
-  rect(buttonX, buttonY - 25, 200, 50, 10);
-  fill(255);
+  // Draw X button
   textAlign(CENTER, CENTER);
-  text("Back to Menu", width/2, buttonY);
+  textSize(40); // Made text slightly larger
+  textFont(dokdoFont); // Using the Dokdo font for consistency
+  text("×", buttonX, buttonY);
 }
 
 function drawLayers() {
   let screenOffset = Math.floor(cameraX / width);
 
-  // Increased range for better coverage
   for (let i = -2; i <= 4; i++) {
     let xOffset = (screenOffset + i) * width;
 
-    // Background wall and rail
+    // background wall and rail
     push();
-    translate(-cameraX * 0.5 + xOffset, 0);
-    image(rail, 0, 0, width, height);
+      translate(-cameraX * 0.5 + xOffset, 0);
+      image(rail, 0, 0, width, height);
     pop();
 
-    // Train
+    // train
     push();
-    translate(-cameraX * 0.6 + xOffset, 0);
-    image(train, 0, 0, width, height);
+      translate(-cameraX * 0.6 + xOffset, 0);
+      image(train, 0, 0, width, height);
     pop();
 
-    // Columns
+    // columns
     push();
-    translate(-cameraX * 0.7 + xOffset, 0);
-    image(columns, 0, 0, width, height);
+      translate(-cameraX * 0.7 + xOffset, 0);
+      image(columns, 0, 0, width, height);
     pop();
 
-    // Info post and wires
+    // info post and wires
     push();
-    translate(-cameraX * 0.8 + xOffset, 0);
-    image(infopost, 0, 0, width, height);
-    image(wires, 0, 0, width, height);
+      translate(-cameraX * 0.8 + xOffset, 0);
+      image(infopost, 0, 0, width, height);
+      image(wires, 0, 0, width, height);
     pop();
 
-    // Floor
+    // floor
     push();
-    translate(-cameraX + xOffset, 0);
-    image(floor, 0, 0, width, height);
+      translate(-cameraX + xOffset, 0);
+      image(floor, 0, 0, width, height);
     pop();
   }
 }
@@ -802,9 +838,9 @@ function drawPlayer() {
 
 function updatePlayer() {
   // Rini movements
-  if ((keyIsDown(65) || keyIsDown(LEFT_ARROW)) && player.worldX > width/3) {  // Add minimum position check
+  if ((keyIsDown(65) || keyIsDown(LEFT_ARROW)) && player.worldX > width/3) { 
     player.velocityX = -player.speed;
-  } else if (keyIsDown(68) || keyIsDown(RIGHT_ARROW)) {  // 'D' key or right arrow
+  } else if (keyIsDown(68) || keyIsDown(RIGHT_ARROW)) {  // 'D' or right arrow
     player.velocityX = player.speed;
   } else {
     player.velocityX *= 0.8;
@@ -818,7 +854,7 @@ function updatePlayer() {
 
   // bounds checking before updating worldX
   const nextWorldX = player.worldX + player.velocityX;
-  if (nextWorldX >= width/3) { // Only update if not going too far left
+  if (nextWorldX >= width/3) { 
     player.worldX = nextWorldX;
   } else {
     player.worldX = width/3; 
@@ -836,7 +872,6 @@ function updatePlayer() {
 }
 
 function updateAndDrawGarbo() {
-  // Update idle time counter
   if (Math.abs(player.velocityX) < 0.1) {
     playerIdleTime++;
   } else {
@@ -848,46 +883,39 @@ function updateAndDrawGarbo() {
       
       if ((playerIdleTime > garbo.idleThreshold) || 
           (garbo.appearTimer > garbo.appearInterval && random(1) < 0.3)) {
-          
-          console.log("Garbo appearing!");
-          garbo.active = true;
-          garbo.x = player.worldX - width/2;
-          garbo.y = groundY - garbo.height;
-          garbo.currentChaseTime = garbo.chaseTime;
-          garbo.appearTimer = 0;
-          playerIdleTime = 0;
+            console.log("Garbo appearing!");
+            garbo.active = true;
+            garbo.x = player.worldX - width/2;
+            garbo.y = groundY - garbo.height;
+            garbo.currentChaseTime = garbo.chaseTime;
+            garbo.appearTimer = 0;
+            playerIdleTime = 0;
       }
   } else {
-    // Update Garbo's position (chase logic)
     let distanceToPlayer = player.worldX - garbo.x;
-    if (distanceToPlayer > 0) { // Only chase if Rini is ahead
+    if (distanceToPlayer > 0) { // only chase if Rini is ahead
       garbo.x += garbo.speed;
     }
     
-    // Draw Garbo - removed flicker effect during chase
     push();
-    imageMode(CENTER);
-    translate(-cameraX + garbo.x, garbo.y + garbo.height/2);
-    
-    // Only flicker when first appearing
-    if (garbo.currentChaseTime > garbo.chaseTime - 30) {
-      if (frameCount % 4 < 2) {
+      imageMode(CENTER);
+      translate(-cameraX + garbo.x, garbo.y + garbo.height/2);
+      
+      if (garbo.currentChaseTime > garbo.chaseTime - 30) {
+        if (frameCount % 4 < 2) {
+          image(garbo.sprites[1], 0, 0, garbo.width, garbo.height);
+        }
+      } else {
         image(garbo.sprites[1], 0, 0, garbo.width, garbo.height);
       }
-    } else {
-      image(garbo.sprites[1], 0, 0, garbo.width, garbo.height);
-    }
     pop();
     
-    // Update chase timer
     garbo.currentChaseTime--;
     if (garbo.currentChaseTime <= 0) {
       garbo.active = false;
     }
     
-    // Check for collision with player
-    let adjustedGarboX = garbo.x - cameraX;
-    // Check for collision with player
+    // collision with player
     if (Math.abs(player.worldX - garbo.x) < (player.width + garbo.width) / 2 &&
     player.y + player.height > garbo.y) {
       lives--;
@@ -896,6 +924,7 @@ function updateAndDrawGarbo() {
       } else {
         showingDeathScreen = true;
       }
+
       gameOverCause = "garbo";
     }
   }
@@ -907,21 +936,20 @@ function displayGameOverScreen() {
   textAlign(CENTER, CENTER);
   fill("#f0df46");
   textFont(playFont);
-  
+
   text("Game Over!", width/2, height/2 - 60);
   
-  // Different messages based on cause
   textFont(dokdoFont);
   fill("#f0df46");
   switch(gameOverCause) {
     case "garbo":
-      text("Queen Garbo caught you!! She'll throw you in the deep pit!!", width/2, height/2);
+      text("Queen Garbo caught you!! She'll throw you in the deepest pit!!", width/2, height/2);
       break;
     case "box":
       text("Oh, shoot! You stepped into Queen Garbo's mysterious box..", width/2, height/2);
       break;
     case "tires":
-      text("Nooo!! You stumbled into a new realm because of the magical tires!!", width/2, height/2);
+      text("Nooo!! You stumbled into a new realm inside the magical tires!!", width/2, height/2);
       break;
   }
   
@@ -933,7 +961,7 @@ function displayGameOverScreen() {
   if (keyIsPressed && key.toLowerCase() === 'r') {
     resetGame();
     gameOver = false;
-    gameOverCause = ""; // Reset the cause
+    gameOverCause = ""; 
   }
 }
 
@@ -950,7 +978,7 @@ function resetPlayerPosition() {
 
 function keyPressed() {
   // W or SPACE, jump
-  if ((keyCode === 87 || keyCode === 32) && player.y + player.height >= groundY) {  // 'W' key or SPACE
+  if ((keyCode === 87 || keyCode === 32) && player.y + player.height >= groundY) { 
     player.velocityY = -15;
   }
 }

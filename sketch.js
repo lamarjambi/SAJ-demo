@@ -367,7 +367,6 @@ function draw() {
   // brightness filter on everything
   push();
     if (brightness < 100) {
-      // Add a dark overlay based on brightness value
       background(0, 0, 0, map(brightness, 0, 100, 200, 0));
     }
 

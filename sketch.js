@@ -247,7 +247,7 @@ class Confetti {
     this.x += sin(frameCount * this.swaySpeed) * this.swayAmount;
     this.angle += this.spinSpeed;
     
-    // Reset when off screen
+    // reset when off screen
     if (this.y > height) {
       this.reset();
     }
@@ -320,6 +320,7 @@ function preload() {
     winSound = loadSound("assets/game-level.mp3");
     garboSound = loadSound("assets/zombie.mp3");
     loseSound = loadSound("assets/game-over.mp3");
+    levelMusic = loadSound("assets/junkyard.wav");
   } catch (e) {
     console.warn("Error loading sounds:", e);
   }
@@ -546,17 +547,6 @@ function drawStartingPage() {
     drawingContext.shadowBlur = 0;
   pop();
 
-  // Handle clicks (update the if-else block)
-  if (mouseIsPressed) {
-      if (playHovered) {
-          handleButtonClick("Play");
-      } else if (manualHovered) {
-          handleButtonClick("Manual");
-      } else if (settingsHovered) {
-          handleButtonClick("Settings");
-      }
-  }
-
   // draw manual button
   push();
   translate(width / 2, manualY);
@@ -590,8 +580,14 @@ function drawStartingPage() {
 }
 
 function mousePressed() {
+  // Check if audio context is suspended and resume it
+  if (getAudioContext().state !== 'running') {
+    getAudioContext().resume();
+  }
+
+  // Then start background music
   if (soundsLoaded && !musicStarted && bgMusic) {
-    bgMusic.setVolume(volume / 100); // Use current volume setting
+    bgMusic.setVolume(volume / 100);
     bgMusic.loop();
     musicStarted = true;
   }
@@ -694,6 +690,22 @@ function drawGameStory() {
       if (bgMusic && bgMusic.isPlaying()) {
         bgMusic.stop();
       }
+
+      // Make sure audio context is running before starting level music
+      if (getAudioContext().state !== 'running') {
+        getAudioContext().resume().then(() => {
+          if (levelMusic) {
+            levelMusic.setVolume(volume / 100);
+            levelMusic.loop();
+          }
+        });
+      } else {
+        if (levelMusic) {
+          levelMusic.setVolume(volume / 100);
+          levelMusic.loop();
+        }
+      }
+      
       gameState = "game";
     }
   }
@@ -896,9 +908,12 @@ function drawSettings() {
   text("Volume", width/4, height/2);
   drawSlider(width/2, height/2, volume, (value) => {
     volume = value;
-    // update the music volume!!!
+    // update ALL music volumes
     if (bgMusic && musicStarted) {
       bgMusic.setVolume(volume / 100);
+    }
+    if (levelMusic && levelMusic.isPlaying()) {
+      levelMusic.setVolume(volume / 100);
     }
   });
 }

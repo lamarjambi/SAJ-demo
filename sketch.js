@@ -473,12 +473,12 @@ function drawStartingPage() {
 
   // play button
   const playY = buttonY;
-  const playHovered = isButtonHovered(mouseX, mouseY, buttonY, { x: -80, y: -80 });
+  const playHovered = isButtonHovered(mouseX, mouseY, buttonY, { x: -50, y: -100 });
   const playScale = playHovered ? 1.1 : 1;  
 
   // manual button
   const manualY = buttonY + buttonSpacing;
-  const manualHovered = isButtonHovered(mouseX, mouseY, buttonY + buttonSpacing, { x: -210, y: -40 });
+  const manualHovered = isButtonHovered(mouseX, mouseY, buttonY + buttonSpacing, { x: -230, y: -20 });
   const manualScale = manualHovered ? 1.1 : 1; 
 
   const settingsX = width / 2 - buttonWidth / 2;

@@ -20,6 +20,8 @@ let bgMusic;
 let winSound;
 let garboSound;
 let loseSound;
+let levelMusic;
+
 let soundsLoaded = false;
 let musicStarted = false;
 
@@ -30,6 +32,7 @@ let dokdoFont;
 // buttons
 let playButton;
 let manualButton;
+let settingsButton;
 
 // intro animations
 let animationTimer = 0;
@@ -269,6 +272,7 @@ function preload() {
   // buttons
   playButton = loadImage("assets/button-play.png");
   manualButton = loadImage("assets/button-manual.png");
+  settingsButton = loadImage("assets/button-settings.png");
 
   // intro page
   introRini = loadImage("assets/intro-rini.png");
@@ -340,7 +344,6 @@ function setup() {
   };
 
   // for sound
-  // Add text prompt for user interaction
   textAlign(CENTER, CENTER);
   textSize(24);
   fill(255);
@@ -354,74 +357,75 @@ function draw() {
 
   // brightness filter on everything
   push();
-  if (brightness < 100) {
-    background(0, 0, 0, map(brightness, 0, 100, 200, 0));
-  }
+    if (brightness < 100) {
+      // Add a dark overlay based on brightness value
+      background(0, 0, 0, map(brightness, 0, 100, 200, 0));
+    }
 
-  switch (gameState) {
-    case "intro":
-      drawStartingPage();
-      break;
-    case "story":
-      drawGameStory();
-      break;
-      case "game":
-    if (!gameWon && !gameOver) {
-      updatePlayer();
-      cameraX = player.worldX - player.x;
-      drawLayers();
-      
-      for (let platform of platforms) {
-        platform.draw();
-        platform.checkCollision(player);
-      }
-      
-      for (let obstacle of obstacles) {
-        obstacle.draw();
-        if (obstacle.checkCollision(player)) {
-          if (!redFlashAlpha) {
-            lives--;
-            redFlashAlpha = 255;
-            gameOverCause = obstacle.type;
-            
-            if (lives <= 0) {
-              gameOver = true;
-              break;
+    switch (gameState) {
+      case "intro":
+        drawStartingPage();
+        break;
+      case "story":
+        drawGameStory();
+        break;
+        case "game":
+      if (!gameWon && !gameOver) {
+        updatePlayer();
+        cameraX = player.worldX - player.x;
+        drawLayers();
+        
+        for (let platform of platforms) {
+          platform.draw();
+          platform.checkCollision(player);
+        }
+        
+        for (let obstacle of obstacles) {
+          obstacle.draw();
+          if (obstacle.checkCollision(player)) {
+            if (!redFlashAlpha) {
+              lives--;
+              redFlashAlpha = 255;
+              gameOverCause = obstacle.type;
+              
+              if (lives <= 0) {
+                gameOver = true;
+                break;
+              }
             }
+            break;
           }
-          break;
         }
-      }
+          
+          drawPlayer();
+          updateAndDrawGarbo();
+          drawGoal();
+          checkGoal();
+          
+          if (redFlashAlpha > 0) {
+            push();
+            fill(255, 0, 0, redFlashAlpha);
+            noStroke();
+            rect(0, 0, width, height);
+            redFlashAlpha = max(0, redFlashAlpha - (255 / FLASH_DURATION));
+            pop();
+          }
+          
+          drawHearts();
         
-        drawPlayer();
-        updateAndDrawGarbo();
-        drawGoal();
-        checkGoal();
-        
-        if (redFlashAlpha > 0) {
-          push();
-          fill(255, 0, 0, redFlashAlpha);
-          noStroke();
-          rect(0, 0, width, height);
-          redFlashAlpha = max(0, redFlashAlpha - (255 / FLASH_DURATION));
-          pop();
+        } else if (gameOver) {
+          displayGameOverScreen();
+        } else {
+          displayWinScreen();
         }
-        
-        drawHearts();
-      
-      } else if (gameOver) {
-        displayGameOverScreen();
-      } else {
-        displayWinScreen();
-      }
-      break;
-    case "manual":
-      drawManual();
-      break;
-    case "settings":
-      drawSettings();
-      break;
-  }
+        break;
+      case "manual":
+        drawManual();
+        break;
+      case "settings":
+        drawSettings();
+        break;
+    }
   pop();
 }
 
@@ -496,11 +500,6 @@ function drawStartingPage() {
   const manualHovered = isButtonHovered(mouseX, mouseY, buttonY + buttonSpacing, { x: -230, y: -20 });
   const manualScale = manualHovered ? 1.1 : 1; 
 
-  const settingsX = width / 2 - buttonWidth / 2;
-  const settingsY = buttonY + buttonSpacing * 2;
-  const settingsHovered = mouseX > settingsX && mouseX < settingsX + buttonWidth &&
-                        mouseY > settingsY - buttonHeight / 2 && mouseY < settingsY + buttonHeight / 2;
-
   // draw play button
   push();
   translate(width / 2, playY);
@@ -519,6 +518,44 @@ function drawStartingPage() {
   drawingContext.shadowOffsetY = 0;
   drawingContext.shadowBlur = 0;
   pop();
+
+  // settings button
+  const settingsY = buttonY + buttonSpacing * 2;
+  const settingsHovered = isButtonHovered(mouseX, mouseY, buttonY + buttonSpacing * 2, 
+      { x: -40, y: 90}, // New x,y offset to match new position
+      true // flag to use settings-specific dimensions
+  );
+  const settingsScale = settingsHovered ? 1.1 : 1;
+
+  // draw settings button
+  push();
+    translate(width / 2, settingsY);
+    rotate(-5);
+    scale(settingsScale);
+
+    // shadow
+    drawingContext.shadowOffsetX = 8;
+    drawingContext.shadowOffsetY = 8;
+    drawingContext.shadowBlur = 10;
+    drawingContext.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    image(settingsButton, -20, 60, 218, 163);
+
+    // reset shadow
+    drawingContext.shadowOffsetX = 0;
+    drawingContext.shadowOffsetY = 0;
+    drawingContext.shadowBlur = 0;
+  pop();
+
+  // Handle clicks (update the if-else block)
+  if (mouseIsPressed) {
+      if (playHovered) {
+          handleButtonClick("Play");
+      } else if (manualHovered) {
+          handleButtonClick("Manual");
+      } else if (settingsHovered) {
+          handleButtonClick("Settings");
+      }
+  }
 
   // draw manual button
   push();
@@ -539,46 +576,35 @@ function drawStartingPage() {
   drawingContext.shadowBlur = 0;
   pop();
 
-  // Draw Settings Button (keeping the original text-based style)
-  // push();
-  // translate(width / 2, settingsY);
-  // scale(settingsHovered ? 1.1 : 1);
-  // fill(100, settingsHovered ? 255 : 200);
-  // rect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, 10);
-  // fill(255);
-  // textSize(24);
-  // text("Settings", 0, 0);
-  // pop();
-
-  // Handle clicks
+  // handle clicks
   if (mouseIsPressed) {
       if (playHovered) {
           handleButtonClick("Play");
       } else if (manualHovered) {
           handleButtonClick("Manual");
       } 
-      // else if (settingsHovered) {
-      //     handleButtonClick("Settings");
-      // }
+      else if (settingsHovered) {
+          handleButtonClick("Settings");
+      }
   }
 }
 
 function mousePressed() {
-  // Start music if it hasn't been started yet
   if (soundsLoaded && !musicStarted && bgMusic) {
-    bgMusic.setVolume(0.3);
+    bgMusic.setVolume(volume / 100); // Use current volume setting
     bgMusic.loop();
     musicStarted = true;
   }
 }
 
-function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset) {
-  const buttonWidth = 160;
-  const buttonHeight = 244;
-  const angle = 10; // degrees
+function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset, isSettings = false) {
+  // Use different dimensions for settings button
+  const buttonWidth = isSettings ? 218 : 160;
+  const buttonHeight = isSettings ? 163 : 244;
+  const angle = isSettings ? -5 : 10; // settings has different rotation
   const rad = angle * Math.PI / 180;
   
-  // center after trasnlation
+  // center after translation
   const buttonCenterX = width/2;
   const buttonCenterY = buttonY;
   
@@ -586,10 +612,11 @@ function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset) {
   const adjustedButtonX = buttonCenterX + buttonOffset.x;
   const adjustedButtonY = buttonCenterY + buttonOffset.y;
   
-  // mouse coordinates
+  // mouse coordinates relative to button center
   const relativeX = mouseX - adjustedButtonX;
   const relativeY = mouseY - adjustedButtonY;
   
+  // rotate coordinates to match button rotation
   const rotatedX = relativeX * Math.cos(-rad) - relativeY * Math.sin(-rad);
   const rotatedY = relativeX * Math.sin(-rad) + relativeY * Math.cos(-rad);
   
@@ -605,7 +632,6 @@ function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset) {
 function handleButtonClick(button) {
   switch (button) {
     case "Play":
-      // Instead of stopping the music, let it continue playing
       gameState = "story";
       storyTimer = 0;
       break;
@@ -800,18 +826,19 @@ function drawManual() {
     textAlign(LEFT, TOP);
     textSize(24);
     textFont(dokdoFont);
-    let instructions = [
-      "Help Rini escape the this junkyard realm!",
+    let instructions = [,
       "Controls (both work):",
       "- WASD keys",
       "- Arrow keys + Space to jump",
 
       "Gameplay:",
       "- Queen Garbo is chasing Rini! Run away from her!",
-      "- Beware of the boxes and tires on the ground--they're booby traps!"
+      "- Beware of the boxes and tires on the ground--they're booby traps!",
+      "- Once Queen Garbo catches you, you will automatically lose ):",
+      "- However, if you face a booby trap, you lose a life (I'm so nice I know :P)"
     ];
     
-    let y = 150;
+    let y = 110;
     for (let instruction of instructions) {
       text(instruction, width/4, y);
       y += 40;
@@ -846,65 +873,99 @@ function drawManual() {
 }
 
 function drawSettings() {
-  background(50);
+  background(30);
+  drawBackButton();
+
   textAlign(CENTER, TOP);
-  textSize(36);
   fill(255);
+  textFont(playFont);
   text("Settings", width/2, 50);
   
-  // brightness slider
   textAlign(LEFT, CENTER);
-  textSize(24);
+  textFont(dokdoFont);  
+  textSize(30);
+
+  // brightness slider
   text("Brightness", width/4, height/3);
-  drawSlider(width/2, height/3, brightness, (value) => brightness = value);
+  drawSlider(width/2, height/3, brightness, (value) => {
+    brightness = value;
+  });
   
   // volume slider
+  textSize(30);
   text("Volume", width/4, height/2);
-  drawSlider(width/2, height/2, volume, (value) => volume = value);
-  
-  drawBackButton();
+  drawSlider(width/2, height/2, volume, (value) => {
+    volume = value;
+    // update the music volume!!!
+    if (bgMusic && musicStarted) {
+      bgMusic.setVolume(volume / 100);
+    }
+  });
 }
 
 function drawSlider(x, y, value, onChange) {
   let sliderWidth = 200;
   let sliderHeight = 20;
   
-  fill(100);
+  // draw slider
+  stroke(150);
+  fill(80);
   rect(x, y - sliderHeight/2, sliderWidth, sliderHeight, 10);
   
+  // draw the filled portion
+  noStroke();
+  fill(120);
+  rect(x, y - sliderHeight/2, (value/100) * sliderWidth, sliderHeight, 10);
+  
+  // draw handle
   fill(200);
   let handleX = x + (value/100 * sliderWidth);
-  ellipse(handleX, y, sliderHeight * 1.5);
+  circle(handleX, y, sliderHeight * 1.5);
   
+  // handle user interaaction
   if (mouseIsPressed &&
       mouseX > x && mouseX < x + sliderWidth &&
-      mouseY > y - sliderHeight && mouseY < y + sliderHeight) {
+      mouseY > y - sliderHeight * 2 && mouseY < y + sliderHeight * 2) {
     let newValue = constrain(map(mouseX, x, x + sliderWidth, 0, 100), 0, 100);
     onChange(newValue);
   }
+
+  // Display value
+  fill(255);
+  noStroke();
+  textAlign(LEFT);
+  textSize(16);
+  text(Math.round(value) + "%", x + sliderWidth + 30, y);
 }
 
 function drawBackButton() {
-  let buttonX = 100;
-  let buttonY = 100;
-  let buttonSize = 100;
+  let buttonX = 20;  // Move to same position as manual
+  let buttonY = 20;
+  let buttonSize = 40;
   
-  // Cif mouse over X
-  if (mouseX > buttonX - buttonSize/2 && mouseX < buttonX + buttonSize/2 &&
-      mouseY > buttonY - buttonSize/2 && mouseY < buttonY + buttonSize/2) {
-    fill('#f84465'); 
-    if (mouseIsPressed) {
-      gameState = "intro";
-    }
-  } else {
-    fill(255); 
+  // check if mouse over button
+  let isHovered = mouseX > buttonX && 
+                  mouseX < buttonX + buttonSize && 
+                  mouseY > buttonY && 
+                  mouseY < buttonY + buttonSize;
+
+  push();
+    // draw button background rectangle (same as manual)
+    noStroke();
+    fill(isHovered ? '#f84465' : 255);
+    rect(buttonX, buttonY, buttonSize, buttonSize);
+
+    // draw X
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    textFont(playFont);
+    text("X", buttonX + buttonSize/2 + 2, buttonY + buttonSize/2 + 1);
+  pop();
+  
+  if (isHovered && mouseIsPressed) {
+    gameState = "intro";
   }
-  
-  // draw X button
-  textAlign(CENTER, CENTER);
-  textSize(40); 
-  textFont(dokdoFont); 
-  text("×", buttonX, buttonY);
 }
 
 function drawLayers() {

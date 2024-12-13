@@ -156,18 +156,19 @@ class Platform {
     this.y = groundY - 40;
     this.width = 120;
     this.height = 30;
-    this.isPlayerOn = false; // Add this to track if player is on platform
+    this.isPlayerOn = false;
   }
 
   draw() {
     push();
-      translate(-cameraX, 0);
-      image(tiles, this.worldX, this.y - this.height, this.width, this.height);
+    translate(-cameraX, 0);
+    image(tiles, this.worldX, this.y - this.height, this.width, this.height);
     pop();
   }
 
   checkCollision(player) {
     let playerWorldX = player.worldX;
+    let prevY = player.y;
     let collisionMargin = 10;
     
     // Check horizontal collision
@@ -175,21 +176,33 @@ class Platform {
       playerWorldX + player.width - collisionMargin > this.worldX &&
       playerWorldX + collisionMargin < this.worldX + this.width;
     
-    // Check if player is falling onto the platform
-    let isLanding = player.velocityY > 0;
+    // Check vertical collision
+    let verticalPosition = player.y + player.height;
+    let platformTop = this.y - this.height;
     
-    // Check vertical collision more precisely
-    let verticalCollision = 
-      player.y + player.height > this.y - this.height &&
-      player.y + player.height < this.y;
+    // collision when:
+    // player is falling (+ velocityY)
+    // player is within a certain distance above the platform
+    let validCollisionHeight = 
+      verticalPosition >= platformTop - 10 && 
+      verticalPosition <= platformTop + 10;
+    
+    if (horizontalCollision) {
+      if (player.velocityY >= 0 && validCollisionHeight) {
+        // landing on platform
+        player.y = platformTop - player.height  -10;
+        player.velocityY = 0;
+        this.isPlayerOn = true;
+        return true;
 
-    // Only handle collision when landing on top of platform
-    if (horizontalCollision && isLanding && verticalCollision) {
-      player.y = (this.y - this.height - player.height) - 10;
-      player.velocityY = 0;
-      this.isPlayerOn = true;
-      return true;
-    } else if (!horizontalCollision || !verticalCollision) {
+      } else if (verticalPosition > platformTop && prevY + player.height <= platformTop) {
+        player.velocityY = 0;
+        player.y = platformTop - player.height - 10;
+      }
+    }
+    
+    // if player moves off platform horizontally -> they're no longer on it
+    if (!horizontalCollision) {
       this.isPlayerOn = false;
     }
     
@@ -1100,11 +1113,13 @@ function resetPlayerPosition() {
 function keyPressed() {
   // W or SPACE, jump when on ground OR on platform
   if (keyCode === 87 || keyCode === 32) {
-    // Check if on ground or any platform
+
+    // these checks are for jumping when the player is on the platform!
+    // check if on ground
     let canJump = player.y + player.height >= groundY;
     
-    // Check if on any platform
-    if (!canJump) {  // Only check platforms if not on ground
+    // check if on any platform
+    if (!canJump) {  // only check platforms if not on ground
       for (let platform of platforms) {
         if (platform.isPlayerOn) {
           canJump = true;

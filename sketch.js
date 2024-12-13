@@ -20,6 +20,8 @@ let bgMusic;
 let winSound;
 let garboSound;
 let loseSound;
+let soundsLoaded = false;
+let musicStarted = false;
 
 // fonts
 let playFont;
@@ -307,10 +309,16 @@ function preload() {
   heartsSprite = loadImage("assets/heart.png");
 
   // sounds
-  bgMusic = loadSound("assets/space-station.mp3");
-  winSound = loadSound("assets/game-level.mp3");
-  garboSound = loadSound("assets/zombie.mp3");
-  loseSound = loadSound("assets/game-over.mp3");
+  try {
+    bgMusic = loadSound("assets/space-station.mp3", () => {
+      soundsLoaded = true;
+    });
+    winSound = loadSound("assets/game-level.mp3");
+    garboSound = loadSound("assets/zombie.mp3");
+    loseSound = loadSound("assets/game-over.mp3");
+  } catch (e) {
+    console.warn("Error loading sounds:", e);
+  }
 }
 
 function setup() {
@@ -330,6 +338,13 @@ function setup() {
     velocityY: 0,
     speed: 5
   };
+
+  // for sound
+  // Add text prompt for user interaction
+  textAlign(CENTER, CENTER);
+  textSize(24);
+  fill(255);
+  text("Click anywhere to start", width/2, height/2);
 }
 
 function draw() {
@@ -548,6 +563,15 @@ function drawStartingPage() {
   }
 }
 
+function mousePressed() {
+  // Start music if it hasn't been started yet
+  if (soundsLoaded && !musicStarted && bgMusic) {
+    bgMusic.setVolume(0.3);
+    bgMusic.loop();
+    musicStarted = true;
+  }
+}
+
 function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset) {
   const buttonWidth = 160;
   const buttonHeight = 244;
@@ -581,6 +605,7 @@ function isButtonHovered(mouseX, mouseY, buttonY, buttonOffset) {
 function handleButtonClick(button) {
   switch (button) {
     case "Play":
+      // Instead of stopping the music, let it continue playing
       gameState = "story";
       storyTimer = 0;
       break;
@@ -638,7 +663,11 @@ function drawGameStory() {
     fill(255);
     text(spaceText, width/2, height * 0.75);
     
+    // when space is pressed -> stop music and go to game
     if (keyIsDown(32)) { 
+      if (bgMusic && bgMusic.isPlaying()) {
+        bgMusic.stop();
+      }
       gameState = "game";
     }
   }
@@ -860,21 +889,21 @@ function drawBackButton() {
   let buttonY = 100;
   let buttonSize = 100;
   
-  // Check if mouse is over the X button
+  // Cif mouse over X
   if (mouseX > buttonX - buttonSize/2 && mouseX < buttonX + buttonSize/2 &&
       mouseY > buttonY - buttonSize/2 && mouseY < buttonY + buttonSize/2) {
-    fill('#f84465'); // Using the same pink color from the title for consistency
+    fill('#f84465'); 
     if (mouseIsPressed) {
       gameState = "intro";
     }
   } else {
-    fill(255); // White color for better visibility
+    fill(255); 
   }
   
-  // Draw X button
+  // draw X button
   textAlign(CENTER, CENTER);
-  textSize(40); // Made text slightly larger
-  textFont(dokdoFont); // Using the Dokdo font for consistency
+  textSize(40); 
+  textFont(dokdoFont); 
   text("×", buttonX, buttonY);
 }
 
@@ -971,6 +1000,7 @@ function resetGame() {
   player.y = height - 160;
   player.velocityX = 0;
   player.velocityY = 0;
+
   cameraX = 0;
   gameWon = false;
   gameOver = false;
@@ -979,9 +1009,16 @@ function resetGame() {
   garbo.active = false;
   playerIdleTime = 0;
   lives = 3; 
+
   setupObstacles();
   setupPlatforms();
   setupPlatformObstacles();
+
+  if (bgMusic && musicStarted) {
+    bgMusic.stop();
+    bgMusic.setVolume(volume / 100);
+    bgMusic.loop();
+  }
 }
 
 function drawPlayer() {

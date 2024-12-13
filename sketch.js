@@ -11,6 +11,9 @@
 // manual = just a text for instructions for the player
 // settings = brightness and volume settings
 // ===============================================
+// notes: small gameplay make it more in respect to the screen, more platforms to jump on, 
+// make hearts bigger and when Rini loses a life -> color change and only loses when all 3 lives are taken
+
 
 // sounds
 let bgMusic;
@@ -95,6 +98,10 @@ let cameraX = 0;
 let goalX = 8000; 
 let gameWon = false;
 let gameState = "intro"; // "intro", "story", "game", "manual", "settings"
+
+// red flash light
+let redFlashAlpha = 0;
+const FLASH_DURATION = 30;
 
 // obstacles
 let box;
@@ -226,47 +233,52 @@ function draw() {
       drawGameStory();
       break;
       case "game":
-        if (!gameWon && !gameOver) {
-          if (showingDeathScreen) {
-            displayDeathScreen();
-            deathScreenTimer++;
-            if (deathScreenTimer > 120) { // 2 seconds
-              showingDeathScreen = false;
-              deathScreenTimer = 0;
-              resetPlayerPosition();
-            }
-          } else {
-            updatePlayer();
-            cameraX = player.worldX - player.x;
-            drawLayers();
-            
-            // Draw and check obstacles
-            for (let obstacle of obstacles) {
-              obstacle.draw();
-              if (obstacle.checkCollision(player)) {
-                lives--;
-                if(lives <= 0) {
-                  gameOver = true;
-                } else {
-                  showingDeathScreen = true;
-                }
-                gameOverCause = obstacle.type;
+      if (!gameWon && !gameOver) {
+        updatePlayer();
+        cameraX = player.worldX - player.x;
+        drawLayers();
+        
+        // Draw and check obstacles
+        for (let obstacle of obstacles) {
+          obstacle.draw();
+          if (obstacle.checkCollision(player)) {
+            if (!redFlashAlpha) { // Only lose a life if not currently flashing
+              lives--;
+              redFlashAlpha = 255; // Start the red flash effect
+              gameOverCause = obstacle.type;
+              
+              if (lives <= 0) {
+                gameOver = true;
                 break;
               }
             }
-            
-            drawPlayer();
-            updateAndDrawGarbo();
-            drawGoal();
-            checkGoal();
-            drawHearts();
+            break;
           }
-        } else if (gameOver) {
-          displayGameOverScreen();
-        } else {
-          displayWinScreen();
         }
-        break;
+        
+        drawPlayer();
+        updateAndDrawGarbo();
+        drawGoal();
+        checkGoal();
+        
+        // Draw the red flash overlay if active
+        if (redFlashAlpha > 0) {
+          push();
+          fill(255, 0, 0, redFlashAlpha);
+          noStroke();
+          rect(0, 0, width, height);
+          redFlashAlpha = max(0, redFlashAlpha - (255 / FLASH_DURATION));
+          pop();
+        }
+        
+        drawHearts();
+      
+      } else if (gameOver) {
+        displayGameOverScreen();
+      } else {
+        displayWinScreen();
+      }
+      break;
     case "manual":
       drawManual();
       break;
@@ -515,7 +527,8 @@ function drawHearts() {
   push();
     translate(20, 20);
     
-    let heartWidth = heartsSprite.width / 3 - 1; // divide sprite
+    let scale = 1.2;
+    let singleHeartWidth = heartsSprite.width / 3 + 3; // Width of one heart in the sprite
     let heartHeight = heartsSprite.height;
     
     for(let i = 0; i < maxLives; i++) {
@@ -525,14 +538,16 @@ function drawHearts() {
       } else {
         tint(128);
       }
+      
+      // Draw from the sprite sheet, selecting the correct portion for each heart
       image(heartsSprite, 
-            i * heartWidth, 0,       
-            heartWidth, heartHeight, 
-            i * heartWidth, 0,      
-            heartWidth, heartHeight 
+            i * (singleHeartWidth * scale - 10), 0,  // Position on screen
+            singleHeartWidth * scale, heartHeight * scale,  // Size on screen
+            0, 0,  // Source position in sprite (always start from left)
+            singleHeartWidth, heartHeight  // How much of source image to use
       );
-    pop();
-  }
+      pop();
+    }
   pop();
 }
 

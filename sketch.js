@@ -317,9 +317,18 @@ function preload() {
     bgMusic = loadSound("assets/space-station.mp3", () => {
       soundsLoaded = true;
     });
-    winSound = loadSound("assets/game-level.mp3");
+    
+    // Explicitly set loop to false for win and lose sounds
+    winSound = loadSound("assets/game-level.mp3", () => {
+      winSound.setLoop(false);  // Prevent looping
+    });
+    
     garboSound = loadSound("assets/zombie.mp3");
-    loseSound = loadSound("assets/game-over.mp3");
+    
+    loseSound = loadSound("assets/game-over.mp3", () => {
+      loseSound.setLoop(false);  // Prevent looping
+    });
+    
     levelMusic = loadSound("assets/junkyard.wav");
   } catch (e) {
     console.warn("Error loading sounds:", e);
@@ -691,7 +700,6 @@ function drawGameStory() {
         bgMusic.stop();
       }
 
-      // Make sure audio context is running before starting level music
       if (getAudioContext().state !== 'running') {
         getAudioContext().resume().then(() => {
           if (levelMusic) {
@@ -945,7 +953,7 @@ function drawSlider(x, y, value, onChange) {
     onChange(newValue);
   }
 
-  // Display value
+  // display value
   fill(255);
   noStroke();
   textAlign(LEFT);
@@ -954,7 +962,7 @@ function drawSlider(x, y, value, onChange) {
 }
 
 function drawBackButton() {
-  let buttonX = 20;  // Move to same position as manual
+  let buttonX = 20;  
   let buttonY = 20;
   let buttonSize = 40;
   
@@ -1037,6 +1045,15 @@ function checkGoal() {
 }
 
 function displayWinScreen() {
+  if (levelMusic && levelMusic.isPlaying()) {
+    levelMusic.stop();
+  }
+
+  if (winSound && !winSound.isPlaying()) {
+    winSound.setLoop(false);
+    winSound.play();
+  }
+
   background(0);
 
   // confetti initiation
@@ -1090,10 +1107,24 @@ function resetGame() {
   setupPlatforms();
   setupPlatformObstacles();
 
-  if (bgMusic && musicStarted) {
+  if (levelMusic && levelMusic.isPlaying()) {
+    levelMusic.stop();
+  }
+  if (bgMusic && bgMusic.isPlaying()) {
     bgMusic.stop();
+  }
+  if (winSound && winSound.isPlaying()) {
+    winSound.stop();
+  }
+  if (loseSound && loseSound.isPlaying()) {
+    loseSound.stop();
+  }
+  if (bgMusic && musicStarted) {
     bgMusic.setVolume(volume / 100);
     bgMusic.loop();
+  }
+  if (garboSound && garboSound.isPlaying()) {
+    garboSound.stop();
   }
 }
 
@@ -1188,6 +1219,14 @@ function updateAndDrawGarbo() {
             garbo.currentChaseTime = garbo.chaseTime;
             garbo.appearTimer = 0;
             playerIdleTime = 0;
+
+            // delay garbo sound by 800 ms 
+            setTimeout(() => {
+              if (garboSound && !garboSound.isPlaying()) {
+                garboSound.setLoop(false);
+                garboSound.play();
+              }
+            }, 800);
       }
   } else {
     let distanceToPlayer = player.worldX - garbo.x;
@@ -1229,6 +1268,15 @@ function updateAndDrawGarbo() {
 }
 
 function displayGameOverScreen() {
+  if (levelMusic && levelMusic.isPlaying()) {
+    levelMusic.stop();
+  }
+
+  if (loseSound && !loseSound.isPlaying()) {
+    loseSound.setLoop(false);
+    loseSound.play();
+  }
+
   background(0);
   textSize(32);
   textAlign(CENTER, CENTER);

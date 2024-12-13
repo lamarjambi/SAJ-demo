@@ -109,10 +109,14 @@ let tires;
 let obstacles = [];
 const OBSTACLE_SPACING = 400;
 
+// platform
+let platforms;
+let tiles;
+
 class Obstacle {
-  constructor(x, type) {
+  constructor(x, type, yPos = null) {
     this.worldX = x;
-    this.y = groundY;
+    this.y = yPos || (groundY + 10); // Use provided y position or default
     this.type = type;
     if (type === 'box') {
       this.width = 60;
@@ -143,6 +147,57 @@ class Obstacle {
       playerWorldX + collisionMargin < this.worldX + this.width &&
       player.y + player.height > this.y - this.height
     );
+  }
+}
+
+class Platform {
+  constructor(x, y, width) {
+    this.worldX = x;
+    this.y = groundY - 40;
+    this.width = 120;
+    this.height = 30;
+    this.isPlayerOn = false; // Add this to track if player is on platform
+  }
+
+  draw() {
+    push();
+      translate(-cameraX, 0);
+      image(tiles, this.worldX, this.y - this.height, this.width, this.height);
+    pop();
+  }
+
+  checkCollision(player) {
+    let playerWorldX = player.worldX;
+    let collisionMargin = 10;
+    
+    // Check horizontal collision
+    let horizontalCollision = 
+      playerWorldX + player.width - collisionMargin > this.worldX &&
+      playerWorldX + collisionMargin < this.worldX + this.width;
+    
+    // Check if player is falling onto the platform
+    let isLanding = player.velocityY > 0;
+    
+    // Check vertical collision more precisely
+    let verticalCollision = 
+      player.y + player.height > this.y - this.height &&
+      player.y + player.height < this.y;
+
+    // Only handle collision when landing on top of platform
+    if (horizontalCollision && isLanding && verticalCollision) {
+      player.y = (this.y - this.height - player.height) - 10;
+      player.velocityY = 0;
+      this.isPlayerOn = true;
+      return true;
+    } else if (!horizontalCollision || !verticalCollision) {
+      this.isPlayerOn = false;
+    }
+    
+    return false;
+  }
+
+  isOnPlatform(player) {
+    return this.isPlayerOn;
   }
 }
 
@@ -186,6 +241,9 @@ function preload() {
   box = loadImage("assets/obstacles/objects/trash/16.png");
   tires = loadImage("assets/obstacles/objects/tires/3.png");
 
+  // tiles
+  tiles = loadImage("assets/obstacles/tiles/Tile_54.png");
+
   // game 
   gatewayCar = loadImage("assets/obstacles/objects/cars/1.png");
   heartsSprite = loadImage("assets/heart.png");
@@ -201,6 +259,8 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   groundY = height - 100;
   setupObstacles();
+  setupPlatforms();
+  setupPlatformObstacles();
 
   player = {
     x: width / 4,
@@ -233,28 +293,34 @@ function draw() {
       drawGameStory();
       break;
       case "game":
-      if (!gameWon && !gameOver) {
-        updatePlayer();
-        cameraX = player.worldX - player.x;
-        drawLayers();
-        
-        // Draw and check obstacles
-        for (let obstacle of obstacles) {
-          obstacle.draw();
-          if (obstacle.checkCollision(player)) {
-            if (!redFlashAlpha) { // Only lose a life if not currently flashing
-              lives--;
-              redFlashAlpha = 255; // Start the red flash effect
-              gameOverCause = obstacle.type;
-              
-              if (lives <= 0) {
-                gameOver = true;
-                break;
-              }
+    if (!gameWon && !gameOver) {
+      updatePlayer();
+      cameraX = player.worldX - player.x;
+      drawLayers();
+      
+      // Draw and check platforms
+      for (let platform of platforms) {
+        platform.draw();
+        platform.checkCollision(player);
+      }
+      
+      // Draw and check obstacles
+      for (let obstacle of obstacles) {
+        obstacle.draw();
+        if (obstacle.checkCollision(player)) {
+          if (!redFlashAlpha) {
+            lives--;
+            redFlashAlpha = 255;
+            gameOverCause = obstacle.type;
+            
+            if (lives <= 0) {
+              gameOver = true;
+              break;
             }
-            break;
           }
+          break;
         }
+      }
         
         drawPlayer();
         updateAndDrawGarbo();
@@ -539,7 +605,6 @@ function drawHearts() {
         tint(128);
       }
       
-      // Draw from the sprite sheet, selecting the correct portion for each heart
       image(heartsSprite, 
             i * (singleHeartWidth * scale - 10), 0,  // Position on screen
             singleHeartWidth * scale, heartHeight * scale,  // Size on screen
@@ -595,6 +660,45 @@ function setupObstacles() {
     }
     
     currentX += 800 + random(350, 500);
+  }
+}
+
+function setupPlatforms() {
+  platforms = [];  // Make sure platforms array is initialized
+  let currentX = width * 2;
+  
+  while (currentX < goalX - width) {
+    // Increased chance to add a platform (60% chance)
+    if (random() > 0.4) {
+      // Create initial platform
+      platforms.push(new Platform(currentX, groundY, 120));
+      
+      // Make platform chains more common (80% chance to continue)
+      let platformLength = 1;
+      while (random() > 0.2 && platformLength < 5) { // Cap max length at 5 tiles
+        currentX += 120; // No gap between tiles
+        platforms.push(new Platform(currentX, groundY, 120));
+        platformLength++;
+      }
+    }
+    
+    // Reduced gap between platform groups
+    currentX += 400 + random(100, 200);
+  }
+}
+
+function setupPlatformObstacles() {
+  // Add obstacles on some platforms
+  for (let platform of platforms) {
+    // 40% chance to add an obstacle on this platform
+    if (random() > 0.6) {
+      let obstacleType = random() > 0.5 ? 'box' : 'tires';
+      // Position the obstacle on top of the platform
+      obstacles.push(new Obstacle(
+        platform.worldX + platform.width/2, // Center it on the platform 
+        platform.y - platform.height // Place it on top of platform
+      ));
+    }
   }
 }
 
@@ -810,8 +914,10 @@ function resetGame() {
   gameState = "intro";
   garbo.active = false;
   playerIdleTime = 0;
-  lives = 3;  // Add this line
+  lives = 3; 
   setupObstacles();
+  setupPlatforms();
+  setupPlatformObstacles();
 }
 
 function drawPlayer() {
@@ -992,8 +1098,23 @@ function resetPlayerPosition() {
 }
 
 function keyPressed() {
-  // W or SPACE, jump
-  if ((keyCode === 87 || keyCode === 32) && player.y + player.height >= groundY) { 
-    player.velocityY = -15;
+  // W or SPACE, jump when on ground OR on platform
+  if (keyCode === 87 || keyCode === 32) {
+    // Check if on ground or any platform
+    let canJump = player.y + player.height >= groundY;
+    
+    // Check if on any platform
+    if (!canJump) {  // Only check platforms if not on ground
+      for (let platform of platforms) {
+        if (platform.isPlayerOn) {
+          canJump = true;
+          break;
+        }
+      }
+    }
+    
+    if (canJump) {
+      player.velocityY = -15;
+    }
   }
 }

@@ -113,6 +113,11 @@ const OBSTACLE_SPACING = 400;
 let platforms;
 let tiles;
 
+// confetti :P
+let confetti = [];
+const CONFETTI_COUNT = 100;
+const CONFETTI_COLORS = ['#FFD700', '#FF69B4', '#00CED1', '#FF6347', '#98FB98'];
+
 class Obstacle {
   constructor(x, type, yPos = null) {
     this.worldX = x;
@@ -214,6 +219,46 @@ class Platform {
   }
 }
 
+class Confetti {
+  constructor() {
+    this.reset();
+    this.y = random(-height, 0); 
+  }
+  
+  reset() {
+    this.x = random(width);
+    this.y = -10;
+    this.speed = random(3, 8);
+    this.size = random(4, 8);
+    this.color = random(CONFETTI_COLORS);
+    this.angle = random(TWO_PI);
+    this.spinSpeed = random(-0.1, 0.1);
+    this.swaySpeed = random(0.1, 0.5);
+    this.swayAmount = random(2, 5);
+  }
+  
+  update() {
+    this.y += this.speed;
+    this.x += sin(frameCount * this.swaySpeed) * this.swayAmount;
+    this.angle += this.spinSpeed;
+    
+    // Reset when off screen
+    if (this.y > height) {
+      this.reset();
+    }
+  }
+  
+  show() {
+    push();
+    translate(this.x, this.y);
+    rotate(this.angle);
+    fill(this.color);
+    noStroke();
+    rect(-this.size/2, -this.size/2, this.size, this.size);
+    pop();
+  }
+}
+
 function preload() {
   // font
   playFont = loadFont("Libraries/PressStart2P-Regular.ttf");
@@ -311,13 +356,11 @@ function draw() {
       cameraX = player.worldX - player.x;
       drawLayers();
       
-      // Draw and check platforms
       for (let platform of platforms) {
         platform.draw();
         platform.checkCollision(player);
       }
       
-      // Draw and check obstacles
       for (let obstacle of obstacles) {
         obstacle.draw();
         if (obstacle.checkCollision(player)) {
@@ -340,7 +383,6 @@ function draw() {
         drawGoal();
         checkGoal();
         
-        // Draw the red flash overlay if active
         if (redFlashAlpha > 0) {
           push();
           fill(255, 0, 0, redFlashAlpha);
@@ -607,7 +649,7 @@ function drawHearts() {
     translate(20, 20);
     
     let scale = 1.2;
-    let singleHeartWidth = heartsSprite.width / 3 + 3; // Width of one heart in the sprite
+    let singleHeartWidth = heartsSprite.width / 3 + 3; 
     let heartHeight = heartsSprite.height;
     
     for(let i = 0; i < maxLives; i++) {
@@ -619,10 +661,10 @@ function drawHearts() {
       }
       
       image(heartsSprite, 
-            i * (singleHeartWidth * scale - 10), 0,  // Position on screen
-            singleHeartWidth * scale, heartHeight * scale,  // Size on screen
-            0, 0,  // Source position in sprite (always start from left)
-            singleHeartWidth, heartHeight  // How much of source image to use
+            i * (singleHeartWidth * scale - 10), 0, 
+            singleHeartWidth * scale, heartHeight * scale,  
+            0, 0,  
+            singleHeartWidth, heartHeight 
       );
       pop();
     }
@@ -677,39 +719,40 @@ function setupObstacles() {
 }
 
 function setupPlatforms() {
-  platforms = [];  // Make sure platforms array is initialized
+  platforms = []; 
   let currentX = width * 2;
   
   while (currentX < goalX - width) {
-    // Increased chance to add a platform (60% chance)
     if (random() > 0.4) {
-      // Create initial platform
+      // initial platform
       platforms.push(new Platform(currentX, groundY, 120));
       
-      // Make platform chains more common (80% chance to continue)
+      // 80% chance to continue
       let platformLength = 1;
-      while (random() > 0.2 && platformLength < 5) { // Cap max length at 5 tiles
-        currentX += 120; // No gap between tiles
+      while (random() > 0.2 && platformLength < 5) { 
+        currentX += 120; // no gap between tiles
         platforms.push(new Platform(currentX, groundY, 120));
         platformLength++;
       }
     }
     
-    // Reduced gap between platform groups
+    // shorter gaps between tires
     currentX += 400 + random(100, 200);
   }
 }
 
 function setupPlatformObstacles() {
-  // Add obstacles on some platforms
   for (let platform of platforms) {
-    // 40% chance to add an obstacle on this platform
     if (random() > 0.6) {
-      let obstacleType = random() > 0.5 ? 'box' : 'tires';
-      // Position the obstacle on top of the platform
+      console.log("platform obstacles!!!");
+      let obstacleType = random() > 0.6 ? 'box' : 'tires';
+    
+      let obstacleY = platform.y - platform.height; 
+      
       obstacles.push(new Obstacle(
-        platform.worldX + platform.width/2, // Center it on the platform 
-        platform.y - platform.height // Place it on top of platform
+        platform.worldX + platform.width/2, 
+        obstacleType,
+        obstacleY
       ));
     }
   }
@@ -745,34 +788,28 @@ function drawManual() {
       y += 40;
     }
   pop();
-  
-  // Back button variables
-  let buttonX = 20;
-  let buttonY = 20;
-  let buttonSize = 40;
-  
-  // Check if mouse is over button
-  let isHovered = mouseX > buttonX && 
-                  mouseX < buttonX + buttonSize && 
-                  mouseY > buttonY && 
-                  mouseY < buttonY + buttonSize;
-  
-  push(); // Save state before button drawing
-  
-    // Draw button background
+    let buttonX = 20;
+    let buttonY = 20;
+    let buttonSize = 40;
+    
+    // check if mouse is over button
+    let isHovered = mouseX > buttonX && 
+                    mouseX < buttonX + buttonSize && 
+                    mouseY > buttonY && 
+                    mouseY < buttonY + buttonSize;
+  push(); 
+    // draw button background
     noStroke();
     fill(isHovered ? '#f84465' : 255);
     rect(buttonX, buttonY, buttonSize, buttonSize);
-    
-    // Draw X - with separate styling
-    fill(0); // Black X
-    textAlign(CENTER, CENTER); // This is crucial for centering the X
+
+    fill(0); 
+    textAlign(CENTER, CENTER); 
     textSize(32);
     textFont(playFont);
-    // Position X in center of rectangle
+
     text("X", buttonX + buttonSize/2 + 2, buttonY + buttonSize/2 + 1);
-  
-  pop(); // Restore state
+  pop(); 
   
   if (isHovered && mouseIsPressed) {
     gameState = "intro";
@@ -896,6 +933,20 @@ function checkGoal() {
 
 function displayWinScreen() {
   background(0);
+
+  // confetti initiation
+  if (confetti.length === 0) {
+    // initialize confetti if not already done
+    for (let i = 0; i < CONFETTI_COUNT; i++) {
+        confetti.push(new Confetti());
+    }
+  }
+
+  for (let p of confetti) {
+      p.update();
+      p.show();
+  }
+
   textSize(32);
   textAlign(CENTER, CENTER);
   fill(255);

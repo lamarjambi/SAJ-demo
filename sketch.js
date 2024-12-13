@@ -318,15 +318,14 @@ function preload() {
       soundsLoaded = true;
     });
     
-    // Explicitly set loop to false for win and lose sounds
     winSound = loadSound("assets/game-level.mp3", () => {
-      winSound.setLoop(false);  // Prevent looping
+      winSound.setLoop(false);  
     });
     
     garboSound = loadSound("assets/zombie.mp3");
     
     loseSound = loadSound("assets/game-over.mp3", () => {
-      loseSound.setLoop(false);  // Prevent looping
+      loseSound.setLoop(false);  
     });
     
     levelMusic = loadSound("assets/junkyard.wav");
@@ -363,7 +362,7 @@ function setup() {
 function draw() {
   background(20);
   
-  console.log("window: ", windowWidth, windowHeight)
+  console.log("window: ", displayWidth, displayHeight)
 
   // brightness filter on everything
   push();

@@ -29,7 +29,6 @@ The project uses the following external libraries:
 
 *   p5.js: [https://p5js.org/](https://p5js.org/)
 *   p5.sound.min.js: [https://p5js.org/reference/#/libraries/p5.sound](https://p5js.org/reference/#/libraries/p5.sound)
-*   Plank.js: [https://github.com/shakiba/Plank.js](https://github.com/shakiba/Plank.js)
 *   p5play.js: [https://p5play.org/](https://p5play.org/)
 
 These libraries are included via CDN links in the `index.html` file.
